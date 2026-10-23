@@ -1,6 +1,6 @@
 # IT Digest
 
-IT Digest is a Next.js 15 technology news digest for World and Vietnam. The app uses database-backed story feeds, localized pages, Prisma/PostgreSQL, BullMQ ingestion and processing workers, and local Postgres/Redis services.
+IT Digest is a Next.js technology news digest for World and Vietnam. The app uses database-backed story feeds, localized pages, Prisma/PostgreSQL, BullMQ ingestion and processing workers, and local Postgres/Redis services.
 
 ## Local development
 
@@ -8,9 +8,9 @@ IT Digest is a Next.js 15 technology news digest for World and Vietnam. The app 
 2. Copy `.env.example` to `.env`. Set `OPENAI_API_KEY` for AI summaries/briefings and `RESEND_API_KEY` plus a verified `RESEND_FROM_EMAIL` for newsletter delivery. Set `NEXT_PUBLIC_APP_URL` to the public site origin for sitemap URLs. Set `ADMIN_USERNAME`, `ADMIN_PASSWORD` and a unique random `ADMIN_SESSION_SECRET` to enable the CMS menu; the secret must remain private. Prisma CLI reads `.env` (not `.env.local`); Next.js also loads `.env`. The worker uses extractive summaries when no OpenAI key is configured.
 3. Start dependencies: `docker compose up -d`.
 4. Install and prepare: `npm install && npx prisma generate && npx prisma migrate dev --name init`.
-5. Run the app: `npm run dev`. The worker starts with the Next.js Node server; no separate worker terminal is required. Use `npm start` for the production server.
+5. Run the app with `npm run dev` and the background worker in a second terminal with `npm run worker`. Use `npm start` for the production web server; run `npm run worker` as a separate, continuously running process.
 
-The homepage, localized search and story detail pages read from PostgreSQL. Next.js Node instrumentation starts BullMQ workers with the web server. RSS polling interval and pause/resume controls are available in CMS at `/admin`; the CMS can enqueue an immediate fetch. `npm run worker` remains available for deployments that intentionally run a dedicated worker process. A new database starts with an empty feed until the first RSS jobs complete. The stories API returns a 503 when the database is unavailable rather than presenting demo content.
+The homepage, localized search and story detail pages read from PostgreSQL. BullMQ workers run as a dedicated process, separate from the Next.js web server. RSS polling interval and pause/resume controls are available in CMS at `/admin`; the CMS can enqueue an immediate fetch. A new database starts with an empty feed until the first RSS jobs complete. The stories API returns a 503 when the database is unavailable rather than presenting demo content.
 
 ## Languages
 
@@ -41,7 +41,7 @@ flowchart LR
   Next --> PG
 ```
 
-The application layer is the Next.js app router and route handlers; `src/lib` contains persistence, queue, feed registry and news domain helpers; `src/instrumentation.ts` starts the BullMQ worker runtime in the Node server. Keep feed polling and model calls out of request handlers. PostgreSQL stores canonical articles, grouped stories, user preferences, source registry, worker polling settings, digests and processing state. Redis/BullMQ provides retryable asynchronous work.
+The application layer is the Next.js app router and route handlers; `src/lib` contains persistence, queue, feed registry and news domain helpers; `src/worker.ts` defines BullMQ jobs and `src/worker-entry.ts` runs them in a dedicated process. Keep feed polling and model calls out of request handlers. PostgreSQL stores canonical articles, grouped stories, user preferences, source registry, worker polling settings, digests and processing state. Redis/BullMQ provides retryable asynchronous work.
 
 ## Data model
 

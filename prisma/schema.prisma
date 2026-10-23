@@ -7,18 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Region {
-  WORLD
-  VIETNAM
-}
-
-enum JobStatus {
-  PENDING
-  PROCESSING
-  COMPLETED
-  FAILED
-}
-
 model Article {
   id              String    @id @default(cuid())
   title           String
@@ -26,19 +14,19 @@ model Article {
   url             String    @unique
   source          String
   sourceId        String?
-  sourceRecord    Source?   @relation(fields: [sourceId], references: [id], onDelete: SetNull)
   region          Region
-  language        String    @default("en")
   category        String    @default("Development")
-  content         String    @default("") @db.Text
-  summary         String?   @db.Text
+  content         String    @default("")
+  summary         String?
   highlights      Json?
   score           Int       @default(40)
   relevance       Float     @default(0)
   publishedAt     DateTime?
   createdAt       DateTime  @default(now())
   storyId         String?
-  story           Story?    @relation(fields: [storyId], references: [id], onDelete: SetNull)
+  language        String    @default("en")
+  sourceRecord    Source?   @relation(fields: [sourceId], references: [id])
+  story           Story?    @relation(fields: [storyId], references: [id])
 
   @@index([region, publishedAt(sort: Desc)])
   @@index([category, publishedAt(sort: Desc)])
@@ -50,15 +38,15 @@ model Article {
 model Story {
   id         String    @id @default(cuid())
   title      String
-  summary    String    @db.Text
+  summary    String
   score      Int       @default(40)
   trendScore Float     @default(0)
-  slug       String?   @unique
-  highlights Json?
   region     Region
   category   String
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
+  highlights Json?
+  slug       String?   @unique
   articles   Article[]
 
   @@index([region, score(sort: Desc), createdAt(sort: Desc)])
@@ -69,8 +57,8 @@ model User {
   email       String           @unique
   name        String?
   avatar      String?
-  preferences UserPreference[]
   createdAt   DateTime         @default(now())
+  preferences UserPreference[]
 }
 
 model UserPreference {
@@ -87,11 +75,11 @@ model Digest {
   period       String
   region       Region?
   title        String
-  summary      String   @default("") @db.Text
-  highlights   Json?
-  translations Json?
   content      Json
   generatedAt  DateTime @default(now())
+  highlights   Json?
+  summary      String   @default("")
+  translations Json?
 
   @@unique([period, region])
 }
@@ -103,10 +91,10 @@ model Source {
   region          Region
   enabled         Boolean   @default(true)
   lastFetchedAt   DateTime?
-  lastFetchStatus String    @default("UNKNOWN")
-  lastFetchError  String?   @db.Text
-  ingestedCount   Int       @default(0)
   createdAt       DateTime  @default(now())
+  ingestedCount   Int       @default(0)
+  lastFetchError  String?
+  lastFetchStatus String    @default("UNKNOWN")
   articles        Article[]
 
   @@index([lastFetchStatus, lastFetchedAt])
@@ -127,17 +115,28 @@ model ProcessingJob {
   kind       String
   status     JobStatus @default(PENDING)
   attempts   Int       @default(0)
-  error      String?   @db.Text
+  error      String?
   createdAt  DateTime  @default(now())
   finishedAt DateTime?
 
   @@index([status, createdAt])
 }
 
-
 model WorkerSetting {
-  id                   String   @id @default("default")
+  id                  String   @id @default("default")
   ingestionEnabled    Boolean  @default(true)
   pollIntervalMinutes Int      @default(30)
-  updatedAt            DateTime @updatedAt
+  updatedAt           DateTime @updatedAt
+}
+
+enum Region {
+  WORLD
+  VIETNAM
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
 }

@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "worker": "IT_DIGEST_WORKER_STANDALONE=1 node --env-file=.env --import tsx src/worker.ts"
+    "worker": "tsx src/worker-entry.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.7.0",
