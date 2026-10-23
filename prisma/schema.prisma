@@ -1,0 +1,143 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Region {
+  WORLD
+  VIETNAM
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model Article {
+  id              String    @id @default(cuid())
+  title           String
+  normalizedTitle String    @default("")
+  url             String    @unique
+  source          String
+  sourceId        String?
+  sourceRecord    Source?   @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  region          Region
+  language        String    @default("en")
+  category        String    @default("Development")
+  content         String    @default("") @db.Text
+  summary         String?   @db.Text
+  highlights      Json?
+  score           Int       @default(40)
+  relevance       Float     @default(0)
+  publishedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  storyId         String?
+  story           Story?    @relation(fields: [storyId], references: [id], onDelete: SetNull)
+
+  @@index([region, publishedAt(sort: Desc)])
+  @@index([category, publishedAt(sort: Desc)])
+  @@index([score, publishedAt(sort: Desc)])
+  @@index([normalizedTitle])
+  @@index([language, publishedAt(sort: Desc)])
+}
+
+model Story {
+  id         String    @id @default(cuid())
+  title      String
+  summary    String    @db.Text
+  score      Int       @default(40)
+  trendScore Float     @default(0)
+  slug       String?   @unique
+  highlights Json?
+  region     Region
+  category   String
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  articles   Article[]
+
+  @@index([region, score(sort: Desc), createdAt(sort: Desc)])
+}
+
+model User {
+  id          String           @id @default(cuid())
+  email       String           @unique
+  name        String?
+  avatar      String?
+  preferences UserPreference[]
+  createdAt   DateTime         @default(now())
+}
+
+model UserPreference {
+  id       String @id @default(cuid())
+  userId   String
+  category String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, category])
+}
+
+model Digest {
+  id           String   @id @default(cuid())
+  period       String
+  region       Region?
+  title        String
+  summary      String   @default("") @db.Text
+  highlights   Json?
+  translations Json?
+  content      Json
+  generatedAt  DateTime @default(now())
+
+  @@unique([period, region])
+}
+
+model Source {
+  id              String    @id @default(cuid())
+  name            String
+  url             String    @unique
+  region          Region
+  enabled         Boolean   @default(true)
+  lastFetchedAt   DateTime?
+  lastFetchStatus String    @default("UNKNOWN")
+  lastFetchError  String?   @db.Text
+  ingestedCount   Int       @default(0)
+  createdAt       DateTime  @default(now())
+  articles        Article[]
+
+  @@index([lastFetchStatus, lastFetchedAt])
+}
+
+model NewsletterSubscriber {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  locale       String   @default("vi")
+  consentAt    DateTime @default(now())
+  subscribedAt DateTime @default(now())
+  createdAt    DateTime @default(now())
+}
+
+model ProcessingJob {
+  id         String    @id @default(cuid())
+  articleId  String
+  kind       String
+  status     JobStatus @default(PENDING)
+  attempts   Int       @default(0)
+  error      String?   @db.Text
+  createdAt  DateTime  @default(now())
+  finishedAt DateTime?
+
+  @@index([status, createdAt])
+}
+
+
+model WorkerSetting {
+  id                   String   @id @default("default")
+  ingestionEnabled    Boolean  @default(true)
+  pollIntervalMinutes Int      @default(30)
+  updatedAt            DateTime @updatedAt
+}

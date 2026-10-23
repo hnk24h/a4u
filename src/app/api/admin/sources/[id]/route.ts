@@ -1,0 +1,8 @@
+import {NextRequest,NextResponse} from "next/server";
+import {z} from "zod";
+import {isAdminAuthenticated} from "@/lib/admin-auth";
+import {prisma} from "@/lib/prisma";
+import {validFeedUrl} from "@/lib/admin-sources";
+const schema=z.object({name:z.string().trim().min(1).max(120),url:z.string().trim().url().max(2000),region:z.enum(["WORLD","VIETNAM"]),enabled:z.boolean()});
+export async function PATCH(request:NextRequest,{params}:{params:Promise<{id:string}>}){if(!await isAdminAuthenticated())return NextResponse.json({error:"Unauthorized"},{status:401});const parsed=schema.safeParse(await request.json().catch(()=>null));if(!parsed.success)return NextResponse.json({error:"Dữ liệu nguồn không hợp lệ."},{status:400});if(!validFeedUrl(parsed.data.url))return NextResponse.json({error:"Nguồn phải dùng URL HTTPS công khai."},{status:400});const {id}=await params;try{const source=await prisma.source.update({where:{id},data:parsed.data});return NextResponse.json({source})}catch(error){if((error as {code?:string}).code==="P2025")return NextResponse.json({error:"Không tìm thấy nguồn."},{status:404});if((error as {code?:string}).code==="P2002")return NextResponse.json({error:"URL này đã được sử dụng."},{status:409});throw error}}
+export async function DELETE(_request:NextRequest,{params}:{params:Promise<{id:string}>}){if(!await isAdminAuthenticated())return NextResponse.json({error:"Unauthorized"},{status:401});const {id}=await params;try{await prisma.source.delete({where:{id}});return NextResponse.json({ok:true})}catch(error){if((error as {code?:string}).code==="P2025")return NextResponse.json({error:"Không tìm thấy nguồn."},{status:404});throw error}}

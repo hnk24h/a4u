@@ -1,0 +1,8 @@
+import {createHash,timingSafeEqual} from "node:crypto";
+import {NextRequest,NextResponse} from "next/server";
+import {connection} from "@/lib/queue";
+import {adminAuthConfigured,adminSessionSeconds,ADMIN_COOKIE,signAdminSession} from "@/lib/admin-auth";
+import {z} from "zod";
+const bodySchema=z.object({username:z.string().min(1).max(120),password:z.string().min(1).max(500)});
+function same(a:string,b:string){return timingSafeEqual(createHash("sha256").update(a).digest(),createHash("sha256").update(b).digest())}
+export async function POST(request:NextRequest){if(!adminAuthConfigured())return NextResponse.json({error:"CMS admin credentials are not configured"},{status:503});const parsed=bodySchema.safeParse(await request.json().catch(()=>null));if(!parsed.success)return NextResponse.json({error:"Nhập username và mật khẩu hợp lệ."},{status:400});const ip=request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()||"unknown";try{const key=`admin-login:${ip}`;const attempts=await connection.incr(key);if(attempts===1)await connection.expire(key,900);if(attempts>10)return NextResponse.json({error:"Quá nhiều lần đăng nhập. Vui lòng thử lại sau 15 phút."},{status:429})}catch{return NextResponse.json({error:"Dịch vụ đăng nhập tạm thời không khả dụng."},{status:503})}if(!same(parsed.data.username,process.env.ADMIN_USERNAME!)||!same(parsed.data.password,process.env.ADMIN_PASSWORD!))return NextResponse.json({error:"Username hoặc mật khẩu không đúng."},{status:401});const response=NextResponse.json({ok:true});response.cookies.set(ADMIN_COOKIE,signAdminSession(parsed.data.username),{httpOnly:true,secure:process.env.NODE_ENV==="production",sameSite:"strict",path:"/",maxAge:adminSessionSeconds});return response}
