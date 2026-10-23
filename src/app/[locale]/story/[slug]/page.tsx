@@ -17,7 +17,7 @@ export async function generateMetadata({params}:{params:Promise<{locale:string;s
   const {locale:raw,slug}=await params;
   if(!isLocale(raw))return{};
   const story=await prisma.story.findFirst({where:{OR:[{slug},{id:slug}]},select:{title:true,summary:true}});
-  return story?{title:`${story.title} — IT Digest`,description:story.summary.slice(0,160)}:{};
+  return story?{title:`${story.title} — A4U`,description:story.summary.slice(0,160)}:{};
 }
 
 export default async function StoryPage({params}:{params:Promise<{locale:string;slug:string}>}){
