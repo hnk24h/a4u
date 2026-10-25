@@ -1,2 +1,13 @@
 import type {MetadataRoute} from "next";
-export default function robots():MetadataRoute.Robots{const origin=(process.env.NEXT_PUBLIC_APP_URL??"http://localhost:3000").replace(/\/$/,"");return{rules:{userAgent:"*",allow:"/",disallow:"/api/"},sitemap:`${origin}/sitemap.xml`}}
+import {getSiteOrigin} from "@/lib/site-url";
+
+export default function robots(): MetadataRoute.Robots {
+  return {
+    rules: {
+      userAgent: "*",
+      allow: "/",
+      disallow: ["/api/", "/admin/"],
+    },
+    sitemap: `${getSiteOrigin()}/sitemap.xml`,
+  };
+}

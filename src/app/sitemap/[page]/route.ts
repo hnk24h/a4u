@@ -1,6 +1,46 @@
 import {prisma} from "@/lib/prisma";
 import {locales} from "@/lib/i18n";
-const pageSize=10000;
-const escapeXml=(value:string)=>value.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;");
-export const dynamic="force-dynamic";
-export async function GET(_request:Request,{params}:{params:Promise<{page:string}>}){const {page:raw}=await params;const page=Number(raw.replace(/\.xml$/, ""));if(!Number.isInteger(page)||page<0)return new Response("Not found",{status:404});const base=(process.env.NEXT_PUBLIC_APP_URL??"http://localhost:3000").replace(/\/$/,"");const stories=await prisma.story.findMany({select:{slug:true,id:true,updatedAt:true},orderBy:{id:"asc"},skip:page*pageSize,take:pageSize});const urls=stories.flatMap(story=>locales.map(locale=>`<url><loc>${escapeXml(`${base}/${locale}/story/${story.slug??story.id}`)}</loc><lastmod>${story.updatedAt.toISOString()}</lastmod><changefreq>weekly</changefreq><priority>0.6</priority></url>`));if(page===0)for(const locale of locales){urls.push(`<url><loc>${base}/${locale}</loc><changefreq>hourly</changefreq><priority>1</priority></url>`);urls.push(`<url><loc>${base}/${locale}/trends</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>`)}return new Response(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.join("")}</urlset>`,{headers:{"Content-Type":"application/xml; charset=utf-8","Cache-Control":"public, s-maxage=3600, stale-while-revalidate=86400"}})}
+import {getSiteOrigin} from "@/lib/site-url";
+
+const pageSize = 10000;
+const escapeXml = (value: string) => value
+  .replace(/&/g, "&amp;")
+  .replace(/</g, "&lt;")
+  .replace(/>/g, "&gt;")
+  .replace(/\"/g, "&quot;")
+  .replace(/'/g, "&apos;");
+
+export const dynamic = "force-dynamic";
+
+export async function GET(_request: Request, {params}: {params: Promise<{page: string}>}) {
+  const {page: raw} = await params;
+  const page = Number(raw.replace(/\.xml$/, ""));
+  if (!Number.isInteger(page) || page < 0) return new Response("Not found", {status: 404});
+
+  const base = getSiteOrigin();
+  const stories = await prisma.story.findMany({
+    select: {slug: true, id: true, updatedAt: true},
+    orderBy: {id: "asc"},
+    skip: page * pageSize,
+    take: pageSize,
+  });
+  const urls = stories.flatMap(story => locales.map(locale => {
+    const slug = encodeURIComponent(story.slug ?? story.id);
+    return `<url><loc>${escapeXml(`${base}/${locale}/story/${slug}`)}</loc><lastmod>${story.updatedAt.toISOString()}</lastmod><changefreq>weekly</changefreq><priority>0.6</priority></url>`;
+  }));
+
+  if (page === 0) {
+    for (const locale of locales) {
+      urls.push(`<url><loc>${base}/${locale}</loc><changefreq>hourly</changefreq><priority>1</priority></url>`);
+      urls.push(`<url><loc>${base}/${locale}/trends</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>`);
+    }
+  }
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.join("")}</urlset>`;
+  return new Response(xml, {
+    headers: {
+      "Content-Type": "application/xml; charset=utf-8",
+      "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+    },
+  });
+}

@@ -5,11 +5,11 @@ import {BookmarkButton} from "@/components/bookmark-button";
 import {prisma} from "@/lib/prisma";
 import {isLocale,type Locale,messages} from "@/lib/i18n";
 
-const labels:Record<Locale,{sources:string;timeline:string;related:string;original:string;published:string;keyPoints:string}>={
-  vi:{sources:"Nguồn bài viết",timeline:"Diễn biến theo thời gian",related:"Tin liên quan",original:"Đọc bài gốc ↗",published:"Đăng lúc",keyPoints:"Điểm chính"},
-  en:{sources:"Sources",timeline:"Story timeline",related:"Related stories",original:"Read original ↗",published:"Published",keyPoints:"Key takeaways"},
-  ja:{sources:"情報源",timeline:"ニュースの経過",related:"関連記事",original:"元記事を読む ↗",published:"公開日時",keyPoints:"要点"},
-  ko:{sources:"출처",timeline:"뉴스 타임라인",related:"관련 뉴스",original:"원문 읽기 ↗",published:"게시 시간",keyPoints:"핵심 요약"},
+const labels:Record<Locale,{sources:string;timeline:string;related:string;original:string;published:string;keyPoints:string;collectedContent:string}>={
+  vi:{sources:"Nguồn bài viết",timeline:"Diễn biến theo thời gian",related:"Tin liên quan",original:"Đọc bài gốc ↗",published:"Đăng lúc",keyPoints:"Điểm chính",collectedContent:"Nội dung thu thập từ RSS"},
+  en:{sources:"Sources",timeline:"Story timeline",related:"Related stories",original:"Read original ↗",published:"Published",keyPoints:"Key takeaways",collectedContent:"Content collected from RSS"},
+  ja:{sources:"情報源",timeline:"ニュースの経過",related:"関連記事",original:"元記事を読む ↗",published:"公開日時",keyPoints:"要点",collectedContent:"RSSから取得した内容"},
+  ko:{sources:"출처",timeline:"뉴스 타임라인",related:"관련 뉴스",original:"원문 읽기 ↗",published:"게시 시간",keyPoints:"핵심 요약",collectedContent:"RSS에서 수집한 내용"},
 };
 export const dynamic="force-dynamic";
 
@@ -39,7 +39,7 @@ export default async function StoryPage({params}:{params:Promise<{locale:string;
         <p className="story-detail-summary">{story.summary}</p>
         <div className="story-detail-score">{story.score} / 100</div>
         {highlights.length>0&&<section className="sidecard story-highlights"><h2>{t.keyPoints}</h2><ul>{highlights.map((item,i)=><li key={i}>{item}</li>)}</ul></section>}
-        <section className="detail-section"><h2>{t.sources} ({story.articles.length})</h2><div className="source-list">{story.articles.map(article=><article key={article.id} className="source-item"><div><strong>{article.source}</strong><p>{article.title}</p><small>{article.language.toUpperCase()} {article.publishedAt?` · ${t.published}: ${new Intl.DateTimeFormat(locale,{dateStyle:"medium",timeStyle:"short"}).format(article.publishedAt)}`:""}</small></div><a href={article.url} target="_blank" rel="noopener noreferrer">{t.original}</a></article>)}</div></section>
+        <section className="detail-section"><h2>{t.sources} ({story.articles.length})</h2><div className="source-list">{story.articles.map(article=><article key={article.id} className="source-item"><div><strong>{article.source}</strong><p>{article.title}</p><small>{article.language.toUpperCase()} {article.publishedAt?` · ${t.published}: ${new Intl.DateTimeFormat(locale,{dateStyle:"medium",timeStyle:"short"}).format(article.publishedAt)}`:""}</small>{article.content&&<details className="source-collected-content"><summary>{t.collectedContent}</summary><p>{article.content}</p></details>}</div><a href={article.url} target="_blank" rel="noopener noreferrer">{t.original}</a></article>)}</div></section>
         <section className="detail-section"><h2>{t.timeline}</h2><ol className="timeline">{story.articles.map(article=><li key={article.id}><time>{article.publishedAt?new Intl.DateTimeFormat(locale,{dateStyle:"medium",timeStyle:"short"}).format(article.publishedAt):new Intl.DateTimeFormat(locale,{dateStyle:"medium"}).format(article.createdAt)}</time><strong>{article.source}</strong><p>{article.summary??article.title}</p></li>)}</ol></section>
       </article>
       <aside className="story-page-sidebar">
